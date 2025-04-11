@@ -1,19 +1,20 @@
-import { useState } from 'react';
-import './App.css';
-import ReactMarkdown from 'react-markdown';
+import { useState } from "react";
+import "./App.css";
+import { marked } from "marked";
+import ReactMarkdown from "react-markdown";
 function App() {
-  const [text1, setText1] = useState('');
-  const [text2, setText2] = useState('');
+  const [text1, setText1] = useState("");
+  const [text2, setText2] = useState("");
   const [loading, setLoading] = useState(false);
   const [image, setImage] = useState(null);
-  const [prompt1, setPrompt1] = useState('');
-  const [prompt2, setPrompt2] = useState('');
+  const [prompt1, setPrompt1] = useState("");
+  const [prompt2, setPrompt2] = useState("");
   const formatText = (text) => {
     // Add line breaks before bold headers and remove any remaining '*' symbols
     const formattedText = text
-      .replace(/\*\*([^*]+)\*\*/g, "<br><strong>$1</strong>")  // Adds a <br> before bold text
-      .replace(/\*/g, "");  // Removes remaining '*' symbols (used for bullet points)
-  
+      .replace(/\*\*([^*]+)\*\*/g, "<br><strong>$1</strong>") // Adds a <br> before bold text
+      .replace(/\*/g, ""); // Removes remaining '*' symbols (used for bullet points)
+
     // Replace any line breaks with <br> to maintain perfect alignment
     return formattedText.replace(/\n/g, "<br>");
   };
@@ -23,7 +24,7 @@ function App() {
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      const base64 = reader.result.split(',')[1];
+      const base64 = reader.result.split(",")[1];
       setImage({ base64, type: file.type });
     };
     reader.readAsDataURL(file);
@@ -31,7 +32,7 @@ function App() {
 
   const handleClick = async (prompt, setText) => {
     if (!image) {
-      alert('Please upload an image first.');
+      alert("Please upload an image first.");
       return;
     }
 
@@ -39,24 +40,25 @@ function App() {
     const apiKey = import.meta.env.VITE_GEMINI_API;
 
     const body = {
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                inlineData: {
-                  mimeType: image.type,
-                  data: image.base64
-                }
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              inlineData: {
+                mimeType: image.type,
+                data: image.base64,
               },
-              {
-                text: prompt || `Start the response with a heading that summarizes the symptoms in image content. Focus only on key visual elements without adding unnecessary details or disclaimers, notes.`
-              }
-            ]
-          }
-        ]
-      };
-      
+            },
+            {
+              text:
+                prompt ||
+                `Start the response with a heading that summarizes the symptoms in image content. Focus only on key visual elements without adding unnecessary details or disclaimers, notes.`,
+            },
+          ],
+        },
+      ],
+    };
 
     try {
       const res = await fetch(
@@ -64,23 +66,23 @@ function App() {
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
           },
-          body: JSON.stringify(body)
+          body: JSON.stringify(body),
         }
       );
 
       const data = await res.json();
-      const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response';
-      setText(resultText);
+      const resultText =
+        data.candidates?.[0]?.content?.parts?.[0]?.text || "No response";
+      setText(marked.parse(resultText));
     } catch (err) {
       console.error(err);
       setText("Something went wrong.");
     }
 
     setLoading(false);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   };
 
   return (
@@ -101,10 +103,15 @@ function App() {
         onChange={(e) => setPrompt2(e.target.value)}
         className="prompt-input"
       />
-      <button className="fetch-btn" onClick={()=>{
-        handleClick(prompt1, setText1);
-        handleClick(prompt2, setText2);
-      }}>Generate</button>
+      <button
+        className="fetch-btn"
+        onClick={() => {
+          handleClick(prompt1, setText1);
+          handleClick(prompt2, setText2);
+        }}
+      >
+        Generate
+      </button>
 
       {loading ? (
         <div className="spinner-container">
@@ -113,11 +120,8 @@ function App() {
         </div>
       ) : (
         <>
-        {/* <textarea className="res" value={text1} readOnly />
-        <textarea className="res" value={text2} readOnly /> */}
-         <div className="formatted-text res" dangerouslySetInnerHTML={{ __html: formatText(text1) }} />
-         <br />
-         <div className="formatted-text res" dangerouslySetInnerHTML={{ __html: formatText(text2) }} />
+          <div className="res" dangerouslySetInnerHTML={{ __html: text1 }} />
+          <div className="res" dangerouslySetInnerHTML={{ __html: text2 }} />
         </>
       )}
     </div>
