@@ -1,3 +1,22 @@
 
 .env
 node_modules
+
+const defaultPrompt = `
+Analyze the image carefully and provide a detailed medical assessment. Structure the response using the following headings, and present the content in simple, clear bullet points:
+
+### 1. Symptoms
+List the key symptoms that are visually noticeable or commonly associated with the condition shown in the image.
+
+### 2. Measures to Reduce Symptoms
+Suggest effective home remedies, medical practices, or supportive treatments that help reduce or manage the symptoms.
+
+### 3. Best Diet
+Recommend the most suitable diet or foods that promote healing, reduce inflammation, or support recovery.
+
+### 4. Precautions
+Mention the important precautions or lifestyle adjustments the patient should follow to prevent worsening of the condition.
+
+### 5. Tablets / Medications
+Provide a list of commonly used over-the-counter or prescription medications/tablets used to treat or relieve the condition.
+`;
