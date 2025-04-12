@@ -1,7 +1,8 @@
 import { useState } from "react";
 import "./App.css";
 import { marked } from "marked";
-import ReactMarkdown from "react-markdown";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
 function App() {
   const [text1, setText1] = useState("");
   const [text2, setText2] = useState("");
@@ -9,15 +10,7 @@ function App() {
   const [image, setImage] = useState(null);
   const [prompt1, setPrompt1] = useState("");
   const [prompt2, setPrompt2] = useState("");
-  const formatText = (text) => {
-    // Add line breaks before bold headers and remove any remaining '*' symbols
-    const formattedText = text
-      .replace(/\*\*([^*]+)\*\*/g, "<br><strong>$1</strong>") // Adds a <br> before bold text
-      .replace(/\*/g, ""); // Removes remaining '*' symbols (used for bullet points)
 
-    // Replace any line breaks with <br> to maintain perfect alignment
-    return formattedText.replace(/\n/g, "<br>");
-  };
   const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -29,7 +22,24 @@ function App() {
     };
     reader.readAsDataURL(file);
   };
+  const defaultPrompt = `
+Analyze the image carefully and provide a detailed medical assessment. Structure the response using the following headings, and present the content in simple, clear bullet points:
 
+### 1. Symptoms
+List the key symptoms that are visually noticeable or commonly associated with the condition shown in the image.
+
+### 2. Measures to Reduce Symptoms
+Suggest effective home remedies, medical practices, or supportive treatments that help reduce or manage the symptoms.
+
+### 3. Best Diet
+Recommend the most suitable diet or foods that promote healing, reduce inflammation, or support recovery.
+
+### 4. Precautions
+Mention the important precautions or lifestyle adjustments the patient should follow to prevent worsening of the condition.
+
+### 5. Tablets / Medications
+Provide a list of commonly used over-the-counter or prescription medications/tablets used to treat or relieve the condition.
+`;
   const handleClick = async (prompt, setText) => {
     if (!image) {
       alert("Please upload an image first.");
@@ -39,57 +49,50 @@ function App() {
     setLoading(true);
     const apiKey = import.meta.env.VITE_GEMINI_API;
 
-    const body = {
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              inlineData: {
-                mimeType: image.type,
-                data: image.base64,
-              },
-            },
-            {
-              text:
-                prompt ||
-                `Start the response with a heading that summarizes the symptoms in image content. Focus only on key visual elements without adding unnecessary details or disclaimers, notes.`,
-            },
-          ],
-        },
-      ],
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
+
+    const imagePart = {
+      inlineData: {
+        mimeType: image.type,
+        data: image.base64,
+      },
     };
 
     try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+      const result = await model.generateContentStream({
+        contents: [
+          {
+            role: "user",
+            parts: [imagePart, { 
+                text: defaultPrompt
+            }],
           },
-          body: JSON.stringify(body),
-        }
-      );
+        ],
+      });
 
-      const data = await res.json();
-      const resultText =
-        data.candidates?.[0]?.content?.parts?.[0]?.text || "No response";
-      setText(marked.parse(resultText));
+      let fullText = "";
+      setText(""); // Clear old text
+
+      for await (const chunk of result.stream) {
+        const chunkText = chunk.text();
+        fullText += chunkText;
+        setText(marked.parse(fullText)); // render markdown progressively
+      }
     } catch (err) {
       console.error(err);
       setText("Something went wrong.");
     }
 
     setLoading(false);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
   };
 
   return (
     <div className="container">
       <h1>Gemini 1.5 Pro Image + Text</h1>
       <input type="file" accept="image/*" onChange={handleImageChange} />
-      <input
+    <br />
+      {/* <input
         type="text"
         placeholder="Enter your prompt1 (optional)"
         value={prompt1}
@@ -102,15 +105,17 @@ function App() {
         value={prompt2}
         onChange={(e) => setPrompt2(e.target.value)}
         className="prompt-input"
-      />
+      /> */}
+
       <button
         className="fetch-btn"
         onClick={() => {
           handleClick(prompt1, setText1);
           handleClick(prompt2, setText2);
         }}
+        disabled={loading}
       >
-        Generate
+        {loading ? "Generating..." : "Generate"}
       </button>
 
       {loading ? (
@@ -121,7 +126,7 @@ function App() {
       ) : (
         <>
           <div className="res" dangerouslySetInnerHTML={{ __html: text1 }} />
-          <div className="res" dangerouslySetInnerHTML={{ __html: text2 }} />
+          {/* <div className="res" dangerouslySetInnerHTML={{ __html: text2 }} /> */}
         </>
       )}
     </div>
